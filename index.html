@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Music</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header>
+    <p class="header-top">Free Downloads</p>
+    <h1>THE ALBUM</h1>
+    <p class="header-bottom">Stream &amp; download all tracks below</p>
+  </header>
+
+  <main>
+    <div id="tracks" class="tracks-grid"></div>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+  <footer>
+    <p>All tracks free to download &nbsp;&bull;&nbsp; Share freely</p>
+  </footer>
+
+  <script>
+    const tracks = [
+      { num: '01', title: 'COUNTDOWN',              file: 'audio/track-01.mp3', cover: 'covers/cover-01.png' },
+      { num: '02', title: 'PARTY',                  file: 'audio/track-02.mp3', cover: 'covers/cover-02.png' },
+      { num: '03', title: 'FUNNY',                  file: 'audio/track-03.mp3', cover: 'covers/cover-03.png' },
+      { num: '04', title: 'REVENGE',                file: 'audio/track-04.mp3', cover: 'covers/cover-04.png' },
+      { num: '05', title: 'CATCH ME',               file: 'audio/track-05.mp3', cover: 'covers/cover-05.png' },
+      { num: '06', title: 'IN REPAIR',              file: 'audio/track-06.mp3', cover: 'covers/cover-06.png' },
+      { num: '07', title: 'WINNER',                 file: 'audio/track-07.mp3', cover: 'covers/cover-07.png' },
+      { num: '08', title: 'PRETTY LITTLE EYES',     file: 'audio/track-08.mp3', cover: 'covers/cover-08.png' },
+      { num: '09', title: 'W4TCH U DI3',            file: 'audio/track-09.mp3', cover: 'covers/cover-09.png' },
+      { num: '10', title: 'MIRROR',                 file: 'audio/track-10.mp3', cover: 'covers/cover-10.png' },
+      { num: '11', title: 'EXOTIC (TOUR VERSION)',   file: 'audio/track-11.mp3', cover: 'covers/cover-11.png' },
+      { num: '12', title: 'KISSMARKS (BLAME ME)',    file: 'audio/track-12.mp3', cover: 'covers/cover-12.png' },
+    ];
+
+    let currentAudio = null;
+    let currentBtn   = null;
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2200);
+    }
+
+    function renderTracks() {
+      const grid = document.getElementById('tracks');
+      grid.innerHTML = '';
+
+      tracks.forEach((track, i) => {
+        const card = document.createElement('div');
+        card.className = 'track-card';
+
+        card.innerHTML = `
+          <div class="cover-wrap">
+            <img
+              class="cover-img"
+              src="${track.cover}"
+              alt="${track.title} cover"
+              onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"
+            />
+            <div class="cover-placeholder" style="display:none">
+              <span class="placeholder-num">${track.num}</span>
+            </div>
+            <button class="play-btn" data-index="${i}" aria-label="Play ${track.title}">
+              <svg class="icon-play" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
+              <svg class="icon-pause" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+            </button>
+          </div>
+          <div class="track-info">
+            <span class="track-num">${track.num}</span>
+            <p class="track-title">${track.title}</p>
+          </div>
+          <div class="track-bar">
+            <span class="track-duration" data-index="${i}">--:--</span>
+            <div class="progress-wrap" data-index="${i}">
+              <div class="progress-fill" style="width:0%"></div>
+            </div>
+          </div>
+          <a class="dl-btn" href="${track.file}" download="${track.title}.mp3">
+            Download
+          </a>
+          <audio class="track-audio" src="${track.file}" preload="metadata"></audio>
+        `;
+
+        grid.appendChild(card);
+      });
+
+      /* ── Play/pause logic ── */
+      document.querySelectorAll('.play-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const card  = btn.closest('.track-card');
+          const audio = card.querySelector('.track-audio');
+          const iconPlay  = btn.querySelector('.icon-play');
+          const iconPause = btn.querySelector('.icon-pause');
+
+          if (currentAudio && currentAudio !== audio) {
+            currentAudio.pause();
+            currentAudio.currentTime = 0;
+            if (currentBtn) {
+              currentBtn.querySelector('.icon-play').style.display  = '';
+              currentBtn.querySelector('.icon-pause').style.display = 'none';
+              currentBtn.closest('.track-card').classList.remove('playing');
+            }
+          }
+
+          if (audio.paused) {
+            try {
+              await audio.play();
+              iconPlay.style.display  = 'none';
+              iconPause.style.display = '';
+              card.classList.add('playing');
+              currentAudio = audio;
+              currentBtn   = btn;
+            } catch(e) {}
+          } else {
+            audio.pause();
+            iconPlay.style.display  = '';
+            iconPause.style.display = 'none';
+            card.classList.remove('playing');
+            currentAudio = null;
+            currentBtn   = null;
+          }
+        });
+      });
+
+      /* ── Progress + duration ── */
+      document.querySelectorAll('.track-audio').forEach((audio, i) => {
+        const card     = audio.closest('.track-card');
+        const fill     = card.querySelector('.progress-fill');
+        const durEl    = card.querySelector('.track-duration');
+        const bar      = card.querySelector('.progress-wrap');
+        const playBtn  = card.querySelector('.play-btn');
+
+        audio.addEventListener('loadedmetadata', () => {
+          durEl.textContent = fmt(audio.duration);
+        });
+
+        audio.addEventListener('timeupdate', () => {
+          if (!audio.duration) return;
+          fill.style.width = (audio.currentTime / audio.duration * 100) + '%';
+          durEl.textContent = fmt(audio.currentTime) + ' / ' + fmt(audio.duration);
+        });
+
+        audio.addEventListener('ended', () => {
+          fill.style.width = '0%';
+          durEl.textContent = '--:--';
+          playBtn.querySelector('.icon-play').style.display  = '';
+          playBtn.querySelector('.icon-pause').style.display = 'none';
+          card.classList.remove('playing');
+          currentAudio = null;
+          currentBtn   = null;
+        });
+
+        const seek = e => {
+          if (!audio.duration) return;
+          const rect = bar.getBoundingClientRect();
+          const pct  = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+          audio.currentTime = pct * audio.duration;
+        };
+
+        bar.addEventListener('click', seek);
+
+        bar.addEventListener('mousedown', e => {
+          seek(e);
+          const onMove = e2 => seek(e2);
+          const onUp   = () => {
+            window.removeEventListener('mousemove', onMove);
+            window.removeEventListener('mouseup', onUp);
+          };
+          window.addEventListener('mousemove', onMove);
+          window.addEventListener('mouseup', onUp);
+        });
+      });
+
+      /* ── Download toast ── */
+      document.querySelectorAll('.dl-btn').forEach((a, i) => {
+        a.addEventListener('click', () => {
+          showToast('Downloading — ' + tracks[i].title);
+        });
+      });
+    }
+
+    function fmt(s) {
+      const m = Math.floor(s / 60);
+      const sec = Math.floor(s % 60).toString().padStart(2, '0');
+      return m + ':' + sec;
+    }
+
+    renderTracks();
+  </script>
+</body>
+</html>
